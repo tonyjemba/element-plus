@@ -1,5 +1,5 @@
 <template>
-  <el-popper
+  <el-tooltip
     ref="refPopper"
     v-model:visible="pickerVisible"
     effect="light"
@@ -14,10 +14,10 @@
     :gpu-acceleration="false"
     :stop-popper-mouse-event="false"
     :hide-after="0"
-    @before-enter="pickerActualVisible = true"
-    @after-leave="pickerActualVisible = false"
+    @show="pickerActualVisible = true"
+    @hide="pickerActualVisible = false"
   >
-    <template #trigger>
+    <template #default>
       <el-input
         v-if="!isRangeInput"
         ref="inputRef"
@@ -117,7 +117,7 @@
         </el-icon>
       </div>
     </template>
-    <template #default>
+    <template #content>
       <slot
         :visible="pickerVisible"
         :actual-visible="pickerActualVisible"
@@ -133,7 +133,7 @@
         @mousedown.stop
       ></slot>
     </template>
-  </el-popper>
+  </el-tooltip>
 </template>
 <script lang="ts">
 import {
@@ -153,7 +153,7 @@ import { useLocale } from '@element-plus/hooks'
 import { elFormKey, elFormItemKey } from '@element-plus/tokens'
 import ElInput from '@element-plus/components/input'
 import ElIcon from '@element-plus/components/icon'
-import ElPopper, { Effect } from '@element-plus/components/popper'
+import ElTooltip from '@element-plus/components/tooltip'
 import { EVENT_CODE } from '@element-plus/utils/aria'
 import { useGlobalConfig, isEmpty } from '@element-plus/utils/util'
 import { Clock, Calendar } from '@element-plus/icons-vue'
@@ -222,7 +222,7 @@ export default defineComponent({
   name: 'Picker',
   components: {
     ElInput,
-    ElPopper,
+    ElTooltip,
     ElIcon,
   },
   props: timePickerDefaultProps,
@@ -235,12 +235,7 @@ export default defineComponent({
     const elFormItem = inject(elFormItemKey, {} as ElFormItemContext)
     const elPopperOptions = inject('ElPopperOptions', {} as Options)
 
-    const refPopper = ref<{
-      popperRef: HTMLElement
-      triggerRef: HTMLElement | ComponentPublicInstance
-      delayHide: () => void
-      delayShow: () => void
-    }>()
+    const refPopper = ref<InstanceType<typeof ElTooltip>>()
     const inputRef = ref<HTMLElement | ComponentPublicInstance>()
     const pickerVisible = ref(false)
     const pickerActualVisible = ref(false)
@@ -280,11 +275,11 @@ export default defineComponent({
       }
     }
     const refInput = computed(() => {
-      if (refPopper.value?.triggerRef) {
+      if (inputRef.value) {
         const _r = isRangeInput.value
-          ? refPopper.value.triggerRef
-          : (refPopper.value.triggerRef as ComponentPublicInstance).$el
-        return [].slice.call(_r.querySelectorAll('input'))
+          ? inputRef.value
+          : (inputRef.value as any as ComponentPublicInstance).$el
+        return Array.from<HTMLInputElement>(_r.querySelectorAll('input'))
       }
       return []
     })
@@ -318,7 +313,7 @@ export default defineComponent({
     }
 
     const handleBlur = () => {
-      refPopper.value?.delayHide()
+      refPopper.value?.onClose()
       blurInput()
     }
 
@@ -428,10 +423,10 @@ export default defineComponent({
     })
 
     const popperPaneRef = computed(() => {
-      return refPopper.value?.popperRef
+      return refPopper.value?.popperRef?.contentRef
     })
 
-    const popperEl = computed(() => unref(refPopper)?.popperRef)
+    const popperEl = computed(() => unref(refPopper)?.popperRef?.contentRef)
     const actualInputRef = computed(() => {
       if (unref(isRangeInput)) {
         return unref(inputRef)
@@ -605,8 +600,6 @@ export default defineComponent({
     })
 
     return {
-      Effect,
-
       // injected popper options
       elPopperOptions,
 
